@@ -1,73 +1,95 @@
-using Unity.VisualScripting;
-using UnityEngine;
-using UnityEngine.InputSystem;
-using UnityEngine.TextCore.Text;
+﻿using UnityEngine;
+using UnityEngine.AI;
 
 public class CharacterController : MonoBehaviour
 {
-        // ------- Values ------- //
-    // -- Move set Character ----
+    // ------- Values ------- //
     Vector2 moveCharacter;
     Vector2 rotCharacter;
-    // ---
+    bool permitedAct = true;
+    bool isSprinting;
 
     [SerializeField]
     float characterVelocity = 10, incrementVelocity = 1.5f;
-    
+
     [SerializeField]
-    bool permitedAct = true;
+    float mouseSensitivity = 100f;
+
+    // -- Camera -- //
+    [SerializeField]
+    Transform camara;
+
+    [SerializeField]
+    float limiteVertical = 45f;
+    [SerializeField]
+    float limiteSprintLateral = 75f;
+    [SerializeField]
+    float cameraDelay = 5f;
+
+    float rotVertical = 0f;
+    float rotLateral = 0f;
 
     // Call GameObject inspector
     Rigidbody rb;
-    CharacterController controler;
+    NavMeshAgent ag;
     Animator animator;
-
 
     // --------------- InputsActions ----------------- //
     private GameplayBehavior inputActions;
 
-    private void OnEnable()
-    {
-        inputActions.Enable();
-    }
-
-    private void OnDisable()
-    {
-        inputActions.Disable(); 
-    }
+    private void OnEnable() => inputActions.Enable();
+    private void OnDisable() => inputActions.Disable();
     // ---------------------------------------------- //
-    
+
     void Awake()
     {
+
         animator = GetComponent<Animator>();
         rb = transform.parent.GetComponent<Rigidbody>();
-        controler = transform.parent.GetComponent<CharacterController>();
+        ag = transform.parent.GetComponent<NavMeshAgent>();
+        ag.speed = characterVelocity;
 
-        // INPUTS ACTIONS
-        inputActions.Player.Move.performed += context => moveCharacter = context.ReadValue<Vector2>();
-        inputActions.Player.Move.canceled += context => moveCharacter = Vector2.zero;
+        inputActions = new GameplayBehavior();
 
-        inputActions.Player.Lock.performed += context => rotCharacter = context.ReadValue<Vector2>();
-        inputActions.Player.Lock.canceled += context => rotCharacter = Vector2.zero;
+        inputActions.Player.Move.performed += ctx => moveCharacter = ctx.ReadValue<Vector2>();
+        inputActions.Player.Move.canceled += ctx => moveCharacter = Vector2.zero;
+
+        inputActions.Player.Lock.performed += ctx => rotCharacter = ctx.ReadValue<Vector2>();
+        inputActions.Player.Lock.canceled += ctx => rotCharacter = Vector2.zero;
+
+        inputActions.Player.Sprint.performed += ctx => isSprinting = true;
+        inputActions.Player.Sprint.canceled += ctx => isSprinting = false;
     }
 
-    // Update is called once per frame
     void Update()
     {
         if (permitedAct)
         {
             MoveCharacter();
             RotCharacter();
-        }  
+            RotCamera();
+        }
     }
 
     void MoveCharacter()
     {
-        //controler.Move
+        if (moveCharacter != Vector2.zero)
+        {
+            // Movemos el padre directamente por código
+            Vector3 direccion = transform.parent.forward * moveCharacter.y
+                              + transform.parent.right * moveCharacter.x;
+
+            transform.parent.position += direccion * characterVelocity * Time.deltaTime;
+        }
     }
 
     void RotCharacter()
     {
 
+    }
+
+    void RotCamera()
+    {
+        
     }
 }
