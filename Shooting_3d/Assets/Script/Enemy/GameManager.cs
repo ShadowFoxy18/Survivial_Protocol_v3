@@ -6,7 +6,7 @@ public class GameManager : MonoBehaviour
 
     public static GameManager instance;
 
-    // -------------------- Game Settings -------------------- //
+    // -------------------- UI -------------------- //
 
     [Header("UI")]
     [SerializeField] GameObject victoryCanvas;
