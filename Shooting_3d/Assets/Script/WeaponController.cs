@@ -1,97 +1,109 @@
-using System.Collections;
 using UnityEngine;
 
 public class WeaponController : MonoBehaviour
 {
+    // ------- Weapon Settings ------- //
     [Header("Weapon Settings")]
     [SerializeField] Transform muzzlePoint;
     [SerializeField] float bulletForce = 500f;
-    [SerializeField] float fireRate = 0.5f;
+    [SerializeField] float raycastRange = 100f;
+    public float fireRate = 0.5f;
 
-    [Header("Ammo")]
-    [SerializeField] int maxAmmo = 15;
-    [SerializeField] bool infiniteAmmo = true;
-    [SerializeField] float reloadTime = 2f;
+    [SerializeField] float animationTime = 3f;
+    float actualTime = 0;
 
-    int currentAmmo;
-    bool isReloading = false;
-    float lastShotTime = 0f;
+    [Header("Shoot Timing")]
+    [SerializeField] float shootAnimDuration = 0.5f;
 
-    // -- Events -- //
-    public System.Action OnReloadStart;
-    public System.Action OnReloadEnd;
+    [Header("References")]
+    [SerializeField] Transform cameraTransform;
+    [SerializeField] Transform leftHandBone;
+
+    float shootAnimTimer = 0f;
+
+    // ------- Components ------- //
+    PlayerInfo playerInfo;
+
+    // -------------------- Unity Methods -------------------- //
 
     void Awake()
     {
-        currentAmmo = maxAmmo;
+        playerInfo = GetComponentInParent<PlayerInfo>();
     }
 
     void Update()
     {
-        // Auto reload when empty
-        if (currentAmmo <= 0 && !isReloading)
-        {
-            TryReload();
-        }
+        HandleWeaponPosition();
+
+        shootAnimTimer -= Time.deltaTime;
     }
 
-    public void TryShoot()
+    // -------------------- Shoot -------------------- //
+
+    public void Shoot()
     {
-        if (!isReloading && currentAmmo > 0 && Time.time >= lastShotTime + fireRate)
-        {
-            Shoot();
-            lastShotTime = Time.time;
-        }
+        AnimatorController.instance.SetShooting(true);
+        shootAnimTimer = shootAnimDuration;
+
+        Vector3 target = GetAimPoint();
+        FireBullet(target);
     }
 
-    public void TryReload()
+    // -------------------- Aim Raycast -------------------- //
+
+    Vector3 GetAimPoint()
     {
-        if (!isReloading && currentAmmo < maxAmmo)
+        Ray ray = new Ray(cameraTransform.position, cameraTransform.forward);
+
+        if (Physics.Raycast(ray, out RaycastHit hit, raycastRange))
         {
-            StartCoroutine(Reload());
-        }
-    }
-
-    IEnumerator Reload()
-    {
-        isReloading = true;
-        OnReloadStart?.Invoke();
-
-        AnimatorController.instance.SetReload(true);
-
-        yield return new WaitForSeconds(reloadTime);
-
-        if (infiniteAmmo)
-        {
-            currentAmmo = maxAmmo;
+            return hit.point;
         }
 
-        AnimatorController.instance.SetReload(false);
-        AnimatorController.instance.SetShooting(false);
-
-        isReloading = false;
-        OnReloadEnd?.Invoke();
+        return cameraTransform.position + cameraTransform.forward * raycastRange;
     }
 
-    void Shoot()
+    void FireBullet(Vector3 target)
     {
         GameObject bullet = BulletPool.instance.PopObject();
         bullet.transform.position = muzzlePoint.position;
-        bullet.transform.rotation = muzzlePoint.rotation;
+        bullet.transform.rotation = Quaternion.LookRotation(target - muzzlePoint.position);
         bullet.SetActive(true);
 
-        bullet.GetComponent<Rigidbody>().AddForce(muzzlePoint.forward * bulletForce, ForceMode.Impulse);
+        bullet.GetComponent<Rigidbody>().AddForce(
+            (target - muzzlePoint.position).normalized * bulletForce,
+            ForceMode.Impulse
+        );
 
-        AnimatorController.instance.SetShooting(true);
+        playerInfo.ConsumeAmmo();
 
-        if (!infiniteAmmo)
+        actualTime = animationTime;
+
+        AnimatorController.instance.SetShooting(false);
+    }
+
+    // -------------------- Weapon Position -------------------- //
+
+    void HandleWeaponPosition()
+    {
+        if (leftHandBone != null)
         {
-            currentAmmo--;
+            transform.position = leftHandBone.position;
+            transform.rotation = leftHandBone.rotation;
         }
     }
 
-    // -- Public getters for UI -- //
-    public bool IsReloading() => isReloading;
-    public int GetCurrentAmmo() => currentAmmo;
-    public int GetMaxAmmo() => maxAmmo;
+    // -------------------- Reload -------------------- //
+
+    public void Reload()
+    {
+        playerInfo.TryReload();
+    }
+
+    // -------------------- Public Getters -------------------- //
+
+    public bool IsShooting()
+    {
+        return shootAnimTimer > 0f;
+    }
 }

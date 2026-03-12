@@ -32,12 +32,6 @@ public class AnimatorController : MonoBehaviour
         animator.SetBool("Sprint", value);
     }
 
-    // Position: -1 = left, 0 = center, 1 = right
-    public void SetPosition(float value)
-    {
-        animator.SetFloat("Position", value);
-    }
-
     // -- Combat -- //
     public void SetShooting(bool value)
     {
